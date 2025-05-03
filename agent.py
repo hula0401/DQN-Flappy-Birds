@@ -1,18 +1,22 @@
-import datetime
+from datetime import datetime, timedelta
 import random
 import stat
 import flappy_bird_gymnasium
 import gymnasium
-from sympy.plotting.backends.matplotlibbackend import matplotlib
 from dqn import DQN
 from experience_replay import ReplayMemory
 import itertools
 import yaml
 import random
+
+import numpy as np
 import torch
 from torch import nn
 import os
+import argparse
 
+import matplotlib
+import matplotlib.pyplot as plt
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 RUNS_DIR = "runs"
@@ -22,7 +26,7 @@ matplotlib.use('Agg')
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#print(device)
+print(device)
 
 #print("Current working directory:", os.getcwd())
 script_dir = os.path.dirname(__file__)  # directory containing agent.py
@@ -50,7 +54,7 @@ class Agent:
         self.gamma = hyperparameters['gamma']
 
         self.fc1_nodes = hyperparameters['fc1_nodes']
-        self.env_make_params = hyperparameters['env_make_params']
+        self.env_make_params = hyperparameters.get('env_make_params',{})
 
         self.loss_fn = torch.nn.MSELoss()
         self.optimizer = None
@@ -94,7 +98,7 @@ class Agent:
             step =0
 
             best_reward = -99999999
-            
+
         else:
             policy_dqn.load_state_dict(torch.load(self.MODEL_FILE))
             policy_dqn.eval()
@@ -107,7 +111,10 @@ class Agent:
             terminated = False
             episode_reward = 0
 
-            while not terminated:
+            while (not terminated and episode_reward < self.stop_on_reward):
+                #env.render()
+                #action = env.action_space.sample()
+                #state, reward, terminated, _, info = env.step(action):
                 # Next action:
                 # (feed the observation to your agent here)
                 if is_training and random.random() < epsilon:
@@ -119,32 +126,68 @@ class Agent:
                         action = policy_dqn(state.unsqueeze(dim=0)).squeeze().argmax()
                     # with training, we will get better action, no need to randomize the action
 
-                new_state, reward, terminated, _, info = env.step(action.item())
+                new_state, reward, terminated, truncated, info = env.step(action.item())
+                
+                episode_reward += reward
+
                 new_state = torch.tensor(new_state, dtype=torch.float, device=device)
                 reward = torch.tensor(reward, dtype=torch.float, device=device)
 
-                episode_reward += reward
-
                 if is_training:
-                    memory.append((state, action, new_state, reward, terminated))     
-                    step +=1      
-
+                    memory.append((state, action, new_state, reward, terminated))
+                    step+=1
                 state = new_state
-
+            
             reward_per_episode.append(episode_reward)
-            print(f"Episode {episode} finished with reward {episode_reward}")
-            epsilon = max(self.epsilon_final, epsilon * self.epsilon_decay)
-            epsilon_history.append(epsilon)
 
-            if len(memory) > self.batch_size:
-                #3self.train(memory, policy_dqn, target_dqn)
-                mini_batch = memory.sample(self.batch_size)
-                self.optimize(mini_batch, policy_dqn, target_dqn)
 
-                if step  > self.network_sync_rate:
-                    target_dqn.load_state_dict(policy_dqn.state_dict())
-                    step = 0
+
+            if is_training:
+                if episode_reward > best_reward:
+                    log_message = f'{datetime.now().strftime(DATE_FORMAT)}: new reward: {episode_reward:0.1f}({(episode_reward-best_reward)/best_reward*100:+.1f}%) at episode {episode}, saving model...'
+                    print(log_message)
+                    with open(self.LOG_FILE, "a") as f:
+                        f.write(log_message + '\n')
+                    
+                    torch.save(policy_dqn.state_dict(), self.MODEL_FILE)
+                    best_reward = episode_reward
+
+                current_time = datetime.now()
+                if current_time - last_graph_update_time > timedelta(seconds=10):
+                    self.save_graphs(reward_per_episode, epsilon_history)
+                    last_graph_update_time = current_time
+
+                if len(memory) > self.batch_size:
+                    #self.train(memory, policy_dqn, target_dqn)
+                    mini_batch = memory.sample(self.batch_size)
+                    self.optimize(mini_batch, policy_dqn, target_dqn)
+
+                    epsilon = max(self.epsilon_min, epsilon * self.epsilon_decay)
+                    epsilon_history.append(epsilon)
+
+                    if step  > self.network_sync_rate:
+                        target_dqn.load_state_dict(policy_dqn.state_dict())
+                        step = 0
     
+    def save_graphs(self, rewards_per_episode, epsilon_history):
+        fig =plt.figure(1)
+        mean_rewards = np.zeros(len(rewards_per_episode))
+        for x in range(len(mean_rewards)):
+            mean_rewards[x] = np.mean(rewards_per_episode[max(0, x-99):(x+1)])
+        plt.subplot(121) # plot on a 1 row x 2 col grid, at cell 1
+        plt.ylabel('Mean Rewards')
+        plt.plot(mean_rewards)
+
+        plt.subplot(122) # plot on a 1 row x 2 col grid, at cell 2
+        # plt.xlabel('Time Steps')
+        plt.ylabel('Epsilon Decay')
+        plt.plot(epsilon_history)
+
+        plt.subplots_adjust(wspace=1.0, hspace=1.0)
+
+        fig.savefig(self.GRAPH_FILE)
+        plt.close(fig)
+
     def optimize(self, mini_batch, policy_dqn, target_dqn):
         ## replace this part for a more efficient pytorch implementation
         #for state, action, new_state, reward, terminated in mini_batch:
@@ -169,7 +212,7 @@ class Agent:
 
 
         current_q = policy_dqn(states).gather(1, actions.unsqueeze(dim=1)).squeeze()
-
+        
         loss = self.loss_fn(current_q, target_q)
 
         self.optimizer.zero_grad()
@@ -178,5 +221,16 @@ class Agent:
 
 
 if __name__ == "__main__":
-    agent = Agent("cartpole1")
-    agent.run(is_training=True, render=True)
+    #agent = Agent("cartpole1")
+    #agent.run(is_training=True, render=True)
+    parser = argparse.ArgumentParser(description='Train or test model.')
+    parser.add_argument('hyperparameters', help='')
+    parser.add_argument('--train', help='Training mode', action='store_true')
+    args = parser.parse_args()
+
+    dql = Agent(hyperparameter_set=args.hyperparameters)
+
+    if args.train:
+        dql.run(is_training=True)
+    else:
+        dql.run(is_training=False, render=True)
