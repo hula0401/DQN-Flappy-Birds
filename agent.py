@@ -56,6 +56,10 @@ class Agent:
         self.fc1_nodes = hyperparameters['fc1_nodes']
         self.env_make_params = hyperparameters.get('env_make_params',{})
 
+        self.enable_double_dqn  = hyperparameters['enable_double_dqn']      # double dqn on/off flag
+        self.enable_dueling_dqn = hyperparameters['enable_dueling_dqn']     # dueling dqn on/off flag
+
+
         self.loss_fn = torch.nn.MSELoss()
         self.optimizer = None
 
