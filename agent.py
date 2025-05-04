@@ -86,14 +86,14 @@ class Agent:
 
         reward_per_episode = []
         
-        policy_dqn = DQN(num_states, num_actions, hidden_dim =self.fc1_nodes).to(device)
+        policy_dqn = DQN(num_states, num_actions, hidden_dim =self.fc1_nodes, enable_dueling_dqn =self.enable_dueling_dqn).to(device)
 
 
         if is_training:
             epsilon =self.epsilon_init
             memory = ReplayMemory(self.replay_memory_size)
             
-            target_dqn = DQN(num_states, num_actions,self.fc1_nodes).to(device)
+            target_dqn = DQN(num_states, num_actions,self.fc1_nodes,self.enable_dueling_dqn).to(device)
             target_dqn.load_state_dict(policy_dqn.state_dict())
 
             self.optimizer = torch.optim.Adam(policy_dqn.parameters(), lr=self.learning_rate)
@@ -210,7 +210,14 @@ class Agent:
         terminations = torch.tensor(terminations).float().to(device) ## True/False to 1/0
 
         with torch.no_grad():
-            target_q = rewards + self.gamma * (1 - terminations) * target_dqn(new_states).max(dim=1)[0]
+            if self.enable_double_dqn:
+                best_actions_from_policy = policy_dqn(new_states).argmax(dim=1)
+
+                target_q = rewards + (1-terminations) * self.gamma * \
+                                target_dqn(new_states).gather(dim=1, index=best_actions_from_policy.unsqueeze(dim=1)).squeeze()
+            else:
+                # Calculate target Q values (expected returns)
+                target_q = rewards + (1-terminations) * self.gamma * target_dqn(new_states).max(dim=1)[0]
             #target_q = target_q.unsqueeze(dim=1)
             #target_q = target_q * torch.eye(2)[actions].to(device) # one hot encoding of actions
 

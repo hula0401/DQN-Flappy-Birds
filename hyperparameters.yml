@@ -10,6 +10,8 @@ cartpole1:
   learning_rate: 0.001
   stop_on_reward: 100000
   fc1_nodes: 10
+  enable_double_dqn: False
+  enable_dueling_dqn: True
 
 cartpole2:
   env_id: CartPole-v1
@@ -23,21 +25,39 @@ cartpole2:
   learning_rate: 0.001
   stop_on_reward: 100000
   fc1_nodes: 10
-
+  enable_double_dqn: False
+  enable_dueling_dqn: True
 
 flappybird1:
   env_id: FlappyBird-v0
   replay_memory_size: 100000
   batch_size: 32
-  epsilon_init: 1.0
+  epsilon_init: 1
   epsilon_min: 0.05
-  epsilon_decay: 0.99_995
+  epsilon_decay: 0.99_99_5
   network_sync_rate: 10
   gamma: 0.99
   learning_rate: 0.0001
-  stop_on_reward: 100000
+  stop_on_reward: 10000
   fc1_nodes: 512
   env_makee_params:
+    use_lidar: False
+  enable_double_dqn: True
+  enable_dueling_dqn: True
+
+flappybird2:
+  env_id: FlappyBird-v0
+  replay_memory_size: 100000
+  batch_size: 32
+  epsilon_init: 0.1
+  epsilon_min: 0.00001
+  epsilon_decay: 0.99_99_5
+  network_sync_rate: 10
+  gamma: 0.99
+  learning_rate: 0.0001
+  stop_on_reward: 10000
+  fc1_nodes: 512
+  env_make_params:
     use_lidar: False
   enable_double_dqn: True
   enable_dueling_dqn: True
