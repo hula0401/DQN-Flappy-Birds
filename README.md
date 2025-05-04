@@ -20,6 +20,9 @@ This project implements a Deep Q-Network (DQN) reinforcement learning agent to p
 ```bash
 pip install torch gymnasium flappy-bird-gymnasium pyyaml
 ```
+```bash
+conda activate environment.yml
+```
 ## Run Trained Model
 ```bash
 python agent.py flappybird2
