@@ -1,6 +1,6 @@
 # Deep Q-Network (DQN) for Flappy Bird
 
-This project implements a Deep Q-Network (DQN) reinforcement learning agent to play Flappy Bird using PyTorch.
+This project implements a Deep Q-Network (DQN) reinforcement learning agent to play Flappy Bird using PyTorch. Trained flappy bird can successfully pass 300+ obstacles (pipes).
 
 ## Features
 - 🎮 Plays Flappy Bird using Deep Reinforcement Learning
@@ -29,14 +29,5 @@ Edit parameters in hyperparams.yaml and run the following command to train the m
 ```bash
 python agent.py flappybird1 --train
 ```
-## File Structure
-flappy_bird_DQN/
-├── agent.py            # Main DQN agent implementation
-├── dqn.py              # Neural network architecture
-├── experience_replay.py # Experience replay buffer
-├── hyperparameters.yml  # Training configuration
-├── runs/               # folder for saving training logs and checkpoints
-└── README.md           # This file
-
-## Demo
-https://github.com/yourusername/yourrepo/blob/main/video.mp4
+### 🎮 Demo (GIF)
+![Demo](./demo.gif)
